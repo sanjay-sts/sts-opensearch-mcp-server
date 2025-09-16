@@ -2,6 +2,8 @@
 
 This directory contains scripts to load MovieLens sample data into OpenSearch for testing and demonstration purposes.
 
+> **Status:** ✅ **Data Successfully Loaded** - 84,661 MovieLens documents are currently indexed in `sts-movielens-metadata-index` on the production OpenSearch cluster.
+
 ## Files
 
 - `load_movielens_metadata.py` - Main loader script

@@ -2,6 +2,8 @@
 
 This directory contains the local deployment setup for the OpenSearch MCP Server, which provides OpenSearch functionality as MCP tools for Claude Desktop.
 
+> **Note:** For production deployment, see the `ecr-ecs-docker/` folder which contains the currently deployed AWS ECS version.
+
 ## Prerequisites
 
 - Python 3.8+

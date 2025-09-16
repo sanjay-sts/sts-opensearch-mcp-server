@@ -2,6 +2,8 @@
 
 This directory contains the Docker deployment setup for the OpenSearch MCP Server, providing OpenSearch functionality as MCP tools for Claude Desktop in a containerized environment.
 
+> **Note:** For production deployment, see the `ecr-ecs-docker/` folder which contains the currently deployed AWS ECS version.
+
 ## Prerequisites
 
 - Docker Engine 20.10+
