@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  opensearch-mcp-server:
+    build: .
+    container_name: opensearch-mcp-server
+    ports:
+      - "8000:8000"
+    environment:
+      # OpenSearch Configuration
+      - OPENSEARCH_HOST=${OPENSEARCH_HOST:-localhost}
+      - OPENSEARCH_PORT=${OPENSEARCH_PORT:-9200}
+      - OPENSEARCH_USERNAME=${OPENSEARCH_USERNAME}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_PASSWORD}
+      - OPENSEARCH_USE_SSL=${OPENSEARCH_USE_SSL:-false}
+      - OPENSEARCH_SSL_VERIFY=${OPENSEARCH_SSL_VERIFY:-false}
+      - OPENSEARCH_SSL_SHOW_WARN=${OPENSEARCH_SSL_SHOW_WARN:-false}
+      - OPENSEARCH_TIMEOUT=${OPENSEARCH_TIMEOUT:-30}
+      - OPENSEARCH_MAX_RETRIES=${OPENSEARCH_MAX_RETRIES:-3}
+      - OPENSEARCH_DEFAULT_INDEX=${OPENSEARCH_DEFAULT_INDEX:-documents}
+      - OPENSEARCH_MAX_RESULTS=${OPENSEARCH_MAX_RESULTS:-100}
+
+      # MCP Server Configuration
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+      - MCP_PATH=/ossmcp
+    volumes:
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - opensearch-mcp-network
+
+networks:
+  opensearch-mcp-network:
+    driver: bridge
