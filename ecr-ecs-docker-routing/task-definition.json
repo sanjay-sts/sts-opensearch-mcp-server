@@ -1,0 +1,98 @@
+{
+  "family": "opensearch-mcp-server-routing",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::892551050452:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::892551050452:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "opensearch-mcp-server-routing",
+      "image": "892551050452.dkr.ecr.us-east-1.amazonaws.com/opensearch-mcp-server:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 9898,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "MCP_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "MCP_PORT",
+          "value": "9898"
+        },
+        {
+          "name": "MCP_PATH",
+          "value": "/ossserver/ossmcp"
+        },
+        {
+          "name": "OPENSEARCH_HOST",
+          "value": "https://search-sts-use1-oss-poc-cluster-3w2nvvdxkhlytzzquhqrr62hay.aos.us-east-1.on.aws"
+        },
+        {
+          "name": "OPENSEARCH_PORT",
+          "value": "443"
+        },
+        {
+          "name": "OPENSEARCH_USERNAME",
+          "value": "svc_oss_readwrite"
+        },
+        {
+          "name": "OPENSEARCH_PASSWORD",
+          "value": "!@#"
+        },
+        {
+          "name": "OPENSEARCH_USE_SSL",
+          "value": "true"
+        },
+        {
+          "name": "OPENSEARCH_SSL_VERIFY",
+          "value": "true"
+        },
+        {
+          "name": "OPENSEARCH_SSL_SHOW_WARN",
+          "value": "false"
+        },
+        {
+          "name": "OPENSEARCH_TIMEOUT",
+          "value": "30"
+        },
+        {
+          "name": "OPENSEARCH_MAX_RETRIES",
+          "value": "3"
+        },
+        {
+          "name": "OPENSEARCH_DEFAULT_INDEX",
+          "value": "documents"
+        },
+        {
+          "name": "OPENSEARCH_MAX_RESULTS",
+          "value": "100"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:9898/ossserver/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/opensearch-mcp-server-routing",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
