@@ -18,28 +18,43 @@ This folder contains the AWS ECS deployment configuration for the OpenSearch MCP
 
 - AWS CLI configured with SSO profile `mainadmin`
 - Docker installed and running
-- OpenSearch cluster credentials
-- Permissions to create ECS, ECR, and ALB resources
+- OpenSearch cluster with FGAC enabled
+- Permissions to create ECS, ECR, ALB, and IAM resources
 
-## Quick Start
+## 🚀 Deployment Steps
 
-Run the deployment scripts in order:
-
+### 0. Setup IAM Roles (First Time Only)
 ```bash
-# 1. Setup ECR and push Docker image
+./00-setup-iam-roles.sh
+```
+This script will:
+- Create ECS task role with OpenSearch permissions
+- Configure IAM policies for OpenSearch access
+- Update task definition with correct role ARN
+
+### 1. Build and Push Docker Image
+```bash
 ./01-setup-ecr.sh
+```
 
-# 2. Create ALB target group
+### 2. Create Target Group (with routing paths)
+```bash
 ./02-create-target-group.sh
+```
 
-# 3. Create ECS task definition
+### 3. Create Task Definition (with routing configuration)
+```bash
 ./03-create-task-definition.sh
+```
 
-# 4. Create ECS service
-./04-create-service.sh
-
-# 5. Create ALB listener rule
+### 4. Create ALB Listener Rule (for /ossserver/* routing)
+```bash
 ./05-create-listener-rule.sh
+```
+
+### 5. Create ECS Service
+```bash
+./04-create-service.sh
 ```
 
 ## Files
@@ -67,21 +82,63 @@ aws sso login --profile mainadmin
 ```
 
 ### OpenSearch Configuration
-Update `task-definition.json` with your OpenSearch details:
+The deployment uses IAM role authentication for secure, credential-less access to OpenSearch. Connection details are configured as environment variables in the task definition, with authentication handled automatically through AWS IAM.
+
+## 🔐 Security Features
+
+### IAM Role Authentication
+- **No Credentials**: Uses IAM role authentication, no passwords to manage
+- **ECS Task Role**: `ecsTaskRole` with minimal OpenSearch permissions
+- **Automatic Rotation**: Credentials automatically rotated by AWS STS
+- **Fine-Grained Access**: Configured through OpenSearch FGAC
+
+### IAM Role Configuration
+The deployment creates an ECS task role with OpenSearch permissions:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "es:ESHttpPost",
+                "es:ESHttpPut",
+                "es:ESHttpGet",
+                "es:ESHttpDelete",
+                "es:ESHttpHead"
+            ],
+            "Resource": [
+                "arn:aws:es:us-east-1:892551050452:domain/sts-use1-oss-poc-cluster",
+                "arn:aws:es:us-east-1:892551050452:domain/sts-use1-oss-poc-cluster/*"
+            ]
+        }
+    ]
+}
+```
+
+### Environment Variables
+The task definition includes these environment variables:
 ```json
 {
   "name": "OPENSEARCH_HOST",
-  "value": "your-opensearch-cluster.com"
+  "value": "https://search-sts-use1-oss-poc-cluster-..."
 },
 {
-  "name": "OPENSEARCH_USERNAME",
-  "value": "your-username"
+  "name": "OPENSEARCH_USE_IAM",
+  "value": "true"
 },
 {
-  "name": "OPENSEARCH_PASSWORD",
-  "value": "your-password"
+  "name": "OPENSEARCH_USE_SSL",
+  "value": "true"
 }
 ```
+
+### OpenSearch FGAC Configuration
+After running the IAM setup script, you need to configure OpenSearch Fine-Grained Access Control:
+
+1. **Map IAM Role**: Add `arn:aws:iam::892551050452:role/ecsTaskRole` to OpenSearch role mappings
+2. **See Guide**: Check `configure-opensearch-fgac.md` for detailed instructions
+3. **Access Methods**: Use OpenSearch Dashboards, AWS CLI, or REST API
 
 ## Deployment Steps
 

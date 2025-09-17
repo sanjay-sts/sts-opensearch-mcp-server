@@ -5,7 +5,7 @@
   "cpu": "256",
   "memory": "512",
   "executionRoleArn": "arn:aws:iam::892551050452:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::892551050452:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::892551050452:role/ecsTaskRole",
   "containerDefinitions": [
     {
       "name": "opensearch-mcp-server-routing",
@@ -39,12 +39,8 @@
           "value": "443"
         },
         {
-          "name": "OPENSEARCH_USERNAME",
-          "value": "svc_oss_readwrite"
-        },
-        {
-          "name": "OPENSEARCH_PASSWORD",
-          "value": "!@#"
+          "name": "OPENSEARCH_USE_IAM",
+          "value": "true"
         },
         {
           "name": "OPENSEARCH_USE_SSL",

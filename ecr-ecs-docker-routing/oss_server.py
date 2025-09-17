@@ -21,6 +21,10 @@ from opensearchpy import OpenSearch, RequestsHttpConnection
 from opensearchpy.exceptions import OpenSearchException, NotFoundError
 import urllib3
 
+# AWS IAM authentication
+from requests_aws4auth import AWS4Auth
+import boto3
+
 # SSL warnings will be suppressed conditionally in client creation
 
 # Load environment variables
@@ -34,6 +38,7 @@ class OpenSearchConfig:
     port: int = 9200
     username: str = ""
     password: str = ""
+    use_iam: bool = False
     use_ssl: bool = False
     ssl_verify: bool = False
     ssl_show_warn: bool = False
@@ -52,17 +57,20 @@ class OpenSearchConfig:
             except (ValueError, TypeError):
                 return default
 
+        use_iam = os.getenv("OPENSEARCH_USE_IAM", "false").lower() == "true"
         username = os.getenv("OPENSEARCH_USERNAME", "")
         password = os.getenv("OPENSEARCH_PASSWORD", "")
 
-        if not username or not password:
-            raise ValueError("OPENSEARCH_USERNAME and OPENSEARCH_PASSWORD must be set")
+        # For IAM authentication, username/password are not required
+        if not use_iam and (not username or not password):
+            raise ValueError("OPENSEARCH_USERNAME and OPENSEARCH_PASSWORD must be set when not using IAM")
 
         return cls(
             host=os.getenv("OPENSEARCH_HOST", "localhost"),
             port=safe_int(os.getenv("OPENSEARCH_PORT", "9200"), 9200),
             username=username,
             password=password,
+            use_iam=use_iam,
             use_ssl=os.getenv("OPENSEARCH_USE_SSL", "false").lower() == "true",
             ssl_verify=os.getenv("OPENSEARCH_SSL_VERIFY", "false").lower() == "true",
             ssl_show_warn=os.getenv("OPENSEARCH_SSL_SHOW_WARN", "false").lower() == "true",
@@ -96,9 +104,26 @@ class OpenSearchClient:
         else:
             use_ssl = self.config.use_ssl
 
+        # Configure authentication
+        if self.config.use_iam:
+            # Use IAM role authentication
+            session = boto3.Session()
+            credentials = session.get_credentials()
+            awsauth = AWS4Auth(
+                credentials.access_key,
+                credentials.secret_key,
+                session.region_name or 'us-east-1',
+                'es',
+                session_token=credentials.token
+            )
+            http_auth = awsauth
+        else:
+            # Use username/password authentication
+            http_auth = (self.config.username, self.config.password)
+
         return OpenSearch(
             hosts=[{'host': host, 'port': self.config.port}],
-            http_auth=(self.config.username, self.config.password),
+            http_auth=http_auth,
             use_ssl=use_ssl,
             verify_certs=self.config.ssl_verify,
             ssl_show_warn=self.config.ssl_show_warn,
