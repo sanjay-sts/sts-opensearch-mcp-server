@@ -268,3 +268,68 @@ MIT License - see LICENSE file for details.
 **Current Deployment Status:** ✅ Production Ready
 **Last Updated:** September 2025
 **Maintainer:** [@sanjay-sts](https://github.com/sanjay-sts)
+
+
+
+
+    Migrate from the current stateful MCP server deployment to a stateless version         
+    that can handle load balancing without session affinity issues.
+
+    Phase 1: Environment Setup & Code Migration
+
+    1. Copy existing routing deployment structure to ecr-ecs-docker-routing-stateless/     
+    2. Modify FastMCP server to enable stateless mode (stateless_http=True)
+    3. Update deployment scripts with new resource names to avoid conflicts
+    4. Create implementation plan document in the stateless folder
+
+    Phase 2: Stateless Configuration
+
+    1. Update oss_server.py - Add stateless_http=True to FastMCP initialization
+    2. Modify environment variables - Add stateless configuration options
+    3. Update resource naming - Change all AWS resource names to include "-stateless"      
+    suffix
+    4. Review health check endpoints - Ensure they work in stateless mode
+
+    Phase 3: Deployment Infrastructure
+
+    1. Update all deployment scripts (01-05-*.sh) with stateless resource names
+    2. Modify task definition with stateless environment variables
+    3. Update ALB routing paths - Use /ossserver-stateless/* paths
+    4. Configure new target groups for stateless deployment
+
+    Phase 4: Testing Setup
+
+    1. Find/create chat CLI tool for testing MCP functionality
+    2. Set up test scenarios to verify stateless behavior works correctly
+    3. Create validation scripts to compare stateful vs stateless responses
+    4. Document testing procedures
+
+    Phase 5: Deployment & Validation
+
+    1. Deploy stateless version alongside existing stateful deployment
+    2. Test both deployments using chat CLI to ensure functionality parity
+    3. Validate load balancing works correctly without session affinity
+    4. Performance comparison between stateful and stateless versions
+
+    Phase 6: Cleanup & Migration
+
+    1. Clean up existing stateful deployment (ECS service, target groups, etc.)
+    2. Update routing to point to stateless version
+    3. Archive stateful deployment configuration for rollback if needed
+    4. Update documentation with new endpoints and configuration
+
+    Key Changes Required
+
+    - FastMCP Server: Add stateless_http=True parameter
+    - Resource Names: All AWS resources get "-stateless" suffix
+    - ALB Paths: Change from /ossserver/* to /ossserver-stateless/*
+    - Deployment Scripts: Update all 6 shell scripts with new names
+    - Testing: Verify no session dependencies remain
+
+    Success Criteria
+
+    - Stateless MCP server responds correctly to all tool calls
+    - No HTTP 404 "Session not found" errors under load balancing
+    - Performance comparable to stateful version
+    - Clean deployment with no resource conflicts
+    - Successful testing with chat CLI demonstrates full functionality

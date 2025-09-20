@@ -3,7 +3,20 @@
     "allow": [
       "Bash(mkdir:*)",
       "Bash(cp:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(git checkout:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(aws sts get-caller-identity:*)",
+      "Bash(curl:*)",
+      "Bash(./01-setup-ecr.sh:*)",
+      "Bash(./02-create-target-group.sh:*)",
+      "Bash(./03-create-task-definition.sh:*)",
+      "Bash(./05-create-listener-rule.sh:*)",
+      "Bash(aws elbv2:*)",
+      "Bash(./04-create-service.sh:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
