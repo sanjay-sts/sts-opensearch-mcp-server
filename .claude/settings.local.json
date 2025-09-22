@@ -16,7 +16,13 @@
       "Bash(./04-create-service.sh:*)",
       "Bash(python3:*)",
       "Bash(pip3 install:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(aws ecs update-service:*)",
+      "Bash(aws ecs wait:*)",
+      "Bash(aws ecs describe-services:*)",
+      "Bash(aws logs describe-log-streams:*)",
+      "Bash(MSYS_NO_PATHCONV=1 aws logs describe-log-streams --log-group-name \"/ecs/opensearch-mcp-server-routing-stateless\" --region us-east-1 --profile mainadmin --order-by LastEventTime --descending --max-items 1 --query 'logStreams[0].logStreamName' --output text)",
+      "Bash(MSYS_NO_PATHCONV=1 aws logs get-log-events --log-group-name \"/ecs/opensearch-mcp-server-routing-stateless\" --log-stream-name \"ecs/opensearch-mcp-server-routing-stateless/f6545a85e2a346ab8302a54b6cfc2572\" --region us-east-1 --profile mainadmin --limit 10 --query 'events[-5:].message' --output text)"
     ],
     "deny": [],
     "ask": []

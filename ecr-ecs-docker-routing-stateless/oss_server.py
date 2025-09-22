@@ -82,14 +82,59 @@ class OpenSearchConfig:
 
 
 class OpenSearchClient:
-    """OpenSearch client wrapper"""
+    """OpenSearch client wrapper with automatic credential refresh"""
 
     def __init__(self, config: OpenSearchConfig):
         self.config = config
-        self.client = self._create_client()
+        self.client = None
+        self.last_auth_refresh = 0
+        self.auth_refresh_interval = 300  # Refresh every 5 minutes (300 seconds) for testing
+        self._refresh_client()
 
-    def _create_client(self) -> OpenSearch:
-        """Create OpenSearch client"""
+    def _get_fresh_auth(self):
+        """Get fresh AWS authentication"""
+        if self.config.use_iam:
+            try:
+                # Create fresh session and credentials each time
+                print("🔄 Creating fresh AWS session and credentials...")
+                session = boto3.Session()
+                credentials = session.get_credentials()
+
+                # Force refresh to get latest token
+                if hasattr(credentials, 'refresh'):
+                    print("🔄 Refreshing credentials...")
+                    credentials.refresh()
+                else:
+                    print("⚠️  Credentials do not support refresh, creating new session...")
+                    # For some credential types, we need to recreate the session
+                    session = boto3.Session()
+                    credentials = session.get_credentials()
+
+                # Log token expiry info if available
+                if hasattr(credentials, 'token') and credentials.token:
+                    print(f"🔑 Using session token (length: {len(credentials.token)} chars)")
+                else:
+                    print("🔑 Using access key/secret (no session token)")
+
+                awsauth = AWS4Auth(
+                    credentials.access_key,
+                    credentials.secret_key,
+                    session.region_name or 'us-east-1',
+                    'es',
+                    session_token=credentials.token
+                )
+                print("✅ Fresh AWS4Auth created successfully")
+                return awsauth
+            except Exception as e:
+                print(f"❌ Error creating fresh auth: {str(e)}")
+                raise
+        else:
+            return (self.config.username, self.config.password)
+
+    def _refresh_client(self):
+        """Refresh OpenSearch client with fresh credentials"""
+        import time
+
         if not self.config.ssl_show_warn:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -104,24 +149,10 @@ class OpenSearchClient:
         else:
             use_ssl = self.config.use_ssl
 
-        # Configure authentication
-        if self.config.use_iam:
-            # Use IAM role authentication
-            session = boto3.Session()
-            credentials = session.get_credentials()
-            awsauth = AWS4Auth(
-                credentials.access_key,
-                credentials.secret_key,
-                session.region_name or 'us-east-1',
-                'es',
-                session_token=credentials.token
-            )
-            http_auth = awsauth
-        else:
-            # Use username/password authentication
-            http_auth = (self.config.username, self.config.password)
+        # Get fresh authentication
+        http_auth = self._get_fresh_auth()
 
-        return OpenSearch(
+        self.client = OpenSearch(
             hosts=[{'host': host, 'port': self.config.port}],
             http_auth=http_auth,
             use_ssl=use_ssl,
@@ -133,12 +164,45 @@ class OpenSearchClient:
             retry_on_timeout=True
         )
 
+        self.last_auth_refresh = time.time()
+
+    def _ensure_fresh_client(self):
+        """Ensure client has fresh credentials"""
+        import time
+        current_time = time.time()
+
+        # Refresh if more than auth_refresh_interval seconds have passed
+        if current_time - self.last_auth_refresh > self.auth_refresh_interval:
+            print(f"🔄 Refreshing OpenSearch credentials (last refresh: {self.auth_refresh_interval}s ago)")
+            self._refresh_client()
+
+    def _execute_with_retry(self, operation_func, *args, **kwargs):
+        """Execute operation with automatic credential refresh on auth errors"""
+        self._ensure_fresh_client()
+
+        try:
+            return operation_func(*args, **kwargs)
+        except Exception as e:
+            error_str = str(e).lower()
+            # Check for various auth error patterns
+            if any(pattern in error_str for pattern in ['expired', 'unauthorized', 'forbidden', 'authorizationexception', 'securitytoken']):
+                print(f"🔑 Authentication error detected, refreshing credentials: {str(e)}")
+                self._refresh_client()
+                # Retry once with fresh credentials
+                return operation_func(*args, **kwargs)
+            else:
+                # Re-raise non-auth errors
+                raise
+
     async def test_connection(self) -> Dict[str, Any]:
-        """Test OpenSearch connection asynchronously"""
+        """Test OpenSearch connection asynchronously with credential refresh"""
         try:
             loop = asyncio.get_event_loop()
-            info = await loop.run_in_executor(None, self.client.info)
-            health = await loop.run_in_executor(None, self.client.cluster.health)
+
+            # Use retry mechanism for both calls
+            info = await loop.run_in_executor(None, self._execute_with_retry, lambda: self.client.info())
+            health = await loop.run_in_executor(None, self._execute_with_retry, lambda: self.client.cluster.health())
+
             return {
                 "status": "connected",
                 "cluster_name": info.get("cluster_name"),
@@ -200,11 +264,12 @@ def initialize_client():
 
 @mcp.tool
 async def list_indices() -> Dict[str, Any]:
-    """List all indices in the OpenSearch cluster"""
+    """List all indices in the OpenSearch cluster with automatic credential refresh"""
     try:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
+            opensearch_client._execute_with_retry,
             lambda: opensearch_client.client.cat.indices(
                 format="json",
                 h="index,docs.count,docs.deleted,store.size,health,status"
